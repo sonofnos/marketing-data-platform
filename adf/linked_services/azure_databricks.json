@@ -1,0 +1,34 @@
+{
+  "name": "ls_azure_databricks",
+  "properties": {
+    "type": "AzureDatabricks",
+    "description": "Azure Databricks workspace for Spark-based transformation jobs",
+    "typeProperties": {
+      "domain": "https://@{linkedService().databricksWorkspaceUrl}",
+      "accessToken": {
+        "type": "AzureKeyVaultSecret",
+        "store": {
+          "referenceName": "ls_key_vault",
+          "type": "LinkedServiceReference"
+        },
+        "secretName": "databricks-access-token"
+      },
+      "existingClusterId": "@{linkedService().clusterId}",
+      "clusterOption": "Existing"
+    },
+    "parameters": {
+      "databricksWorkspaceUrl": {
+        "type": "String"
+      },
+      "clusterId": {
+        "type": "String"
+      }
+    },
+    "connectVia": {
+      "referenceName": "AutoResolveIntegrationRuntime",
+      "type": "IntegrationRuntimeReference"
+    },
+    "annotations": ["marketing-platform", "databricks", "spark"]
+  },
+  "type": "Microsoft.DataFactory/factories/linkedservices"
+}

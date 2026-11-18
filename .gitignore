@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+.env
+
+# Generated pipeline outputs
+data/bronze/
+data/silver/
+data/gold/
+
+# Keep raw seed data
+!data/raw/
+
+# Terraform state
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# Spark
+derby.log
+metastore_db/
+spark-warehouse/

@@ -1,0 +1,29 @@
+{
+  "name": "ls_adls_gen2",
+  "properties": {
+    "type": "AzureBlobFS",
+    "description": "Azure Data Lake Storage Gen2 — primary data lake for the marketing platform",
+    "typeProperties": {
+      "url": "https://@{linkedService().storageAccountName}.dfs.core.windows.net",
+      "accountKey": {
+        "type": "AzureKeyVaultSecret",
+        "store": {
+          "referenceName": "ls_key_vault",
+          "type": "LinkedServiceReference"
+        },
+        "secretName": "adls-account-key"
+      }
+    },
+    "parameters": {
+      "storageAccountName": {
+        "type": "String"
+      }
+    },
+    "connectVia": {
+      "referenceName": "AutoResolveIntegrationRuntime",
+      "type": "IntegrationRuntimeReference"
+    },
+    "annotations": ["marketing-platform", "storage"]
+  },
+  "type": "Microsoft.DataFactory/factories/linkedservices"
+}

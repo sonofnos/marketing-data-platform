@@ -1,0 +1,158 @@
+{
+  "name": "pipeline_crm_ingest",
+  "properties": {
+    "description": "Ingest CRM customer CSV from ADLS Gen2 raw zone into bronze layer with schema validation and data flow transformation.",
+    "activities": [
+      {
+        "name": "CopyRawCRM",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 30
+        },
+        "typeProperties": {
+          "source": {
+            "type": "DelimitedTextSource",
+            "storeSettings": {
+              "type": "AzureBlobFSReadSettings",
+              "recursive": false,
+              "wildcardFileName": "crm_customers_*.csv"
+            },
+            "formatSettings": {
+              "type": "DelimitedTextReadSettings",
+              "skipLineCount": 0
+            }
+          },
+          "sink": {
+            "type": "ParquetSink",
+            "storeSettings": {
+              "type": "AzureBlobFSWriteSettings"
+            },
+            "formatSettings": {
+              "type": "ParquetWriteSettings"
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": false,
+              "treatBooleanAsNumber": false
+            }
+          }
+        },
+        "inputs": [
+          {
+            "referenceName": "ds_adls_crm_csv",
+            "type": "DatasetReference",
+            "parameters": {
+              "container": "raw",
+              "folderPath": "crm",
+              "fileName": "*"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_adls_bronze_parquet",
+            "type": "DatasetReference",
+            "parameters": {
+              "container": "bronze",
+              "folderPath": "crm_customers",
+              "fileName": "@concat('crm_', formatDateTime(utcNow(), 'yyyyMMdd'), '.parquet')"
+            }
+          }
+        ]
+      },
+      {
+        "name": "TransformCRMSilver",
+        "type": "ExecuteDataFlow",
+        "dependsOn": [
+          {
+            "activity": "CopyRawCRM",
+            "dependencyConditions": ["Succeeded"]
+          }
+        ],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 60
+        },
+        "typeProperties": {
+          "dataflow": {
+            "referenceName": "df_crm_bronze_to_silver",
+            "type": "DataFlowReference",
+            "parameters": {
+              "runDate": "@formatDateTime(utcNow(), 'yyyy-MM-dd')"
+            }
+          },
+          "compute": {
+            "coreCount": 8,
+            "computeType": "General"
+          },
+          "traceLevel": "Fine"
+        }
+      },
+      {
+        "name": "LogPipelineRun",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "TransformCRMSilver",
+            "dependencyConditions": ["Succeeded", "Failed"]
+          }
+        ],
+        "policy": {
+          "timeout": "0.00:05:00",
+          "retry": 0
+        },
+        "typeProperties": {
+          "storedProcedureName": "sp_log_pipeline_run",
+          "storedProcedureParameters": {
+            "pipeline_name": {
+              "value": "@pipeline().Pipeline",
+              "type": "String"
+            },
+            "run_id": {
+              "value": "@pipeline().RunId",
+              "type": "String"
+            },
+            "status": {
+              "value": "@activity('TransformCRMSilver').Status",
+              "type": "String"
+            },
+            "rows_processed": {
+              "value": "@activity('CopyRawCRM').output.rowsCopied",
+              "type": "Int32"
+            }
+          }
+        },
+        "linkedServiceName": {
+          "referenceName": "ls_azure_sql",
+          "type": "LinkedServiceReference"
+        }
+      }
+    ],
+    "parameters": {
+      "runDate": {
+        "type": "string",
+        "defaultValue": "@formatDateTime(utcNow(), 'yyyy-MM-dd')"
+      },
+      "environment": {
+        "type": "string",
+        "defaultValue": "prod"
+      }
+    },
+    "variables": {
+      "pipelineRunId": {
+        "type": "String"
+      }
+    },
+    "annotations": ["marketing-platform", "crm", "ingestion"],
+    "lastPublishTime": "2026-11-01T00:00:00Z"
+  },
+  "type": "Microsoft.DataFactory/factories/pipelines"
+}
