@@ -119,11 +119,11 @@ def silver_to_gold_campaign_metrics(spark: SparkSession) -> DataFrame:
         )
         .withColumn(
             "ctr",
-            F.round(F.col("clicks") / F.nullif(F.col("impressions"), 0) * 100, 2),
+            F.round(F.col("clicks") / F.when(F.col("impressions") > 0, F.col("impressions")) * 100, 2),
         )
         .withColumn(
             "cvr",
-            F.round(F.col("conversions") / F.nullif(F.col("clicks"), 0) * 100, 2),
+            F.round(F.col("conversions") / F.when(F.col("clicks") > 0, F.col("clicks")) * 100, 2),
         )
     )
 
@@ -133,7 +133,7 @@ def silver_to_gold_campaign_metrics(spark: SparkSession) -> DataFrame:
         how="left",
     ).withColumn(
         "cost_per_conversion",
-        F.round(F.col("budget") / F.nullif(F.col("conversions"), 0), 2),
+        F.round(F.col("budget") / F.when(F.col("conversions") > 0, F.col("conversions")), 2),
     ).withColumn("computed_at", F.current_timestamp())
 
     _write_gold(result, "campaign_metrics")

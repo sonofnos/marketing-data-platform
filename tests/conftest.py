@@ -25,12 +25,23 @@ def spark():
 
 @pytest.fixture()
 def tmp_data_dir(tmp_path, monkeypatch):
-    """Redirect all pipeline data paths to a tmp dir for isolation."""
+    """Redirect all pipeline data paths to a tmp dir for isolation.
+
+    Pipeline modules do `from pipelines.config import BRONZE` (direct binding),
+    so monkeypatching config alone isn't enough — we also patch each module's
+    local name so every read/write hits the same tmp dir.
+    """
     import pipelines.config as cfg
-    monkeypatch.setattr(cfg, "BRONZE", tmp_path / "bronze")
-    monkeypatch.setattr(cfg, "SILVER", tmp_path / "silver")
-    monkeypatch.setattr(cfg, "GOLD", tmp_path / "gold")
-    (tmp_path / "bronze").mkdir()
-    (tmp_path / "silver").mkdir()
-    (tmp_path / "gold").mkdir()
+    import pipelines.ingest as ingest_mod
+    import pipelines.transform as transform_mod
+    import pipelines.segment as segment_mod
+    import pipelines.quality as quality_mod
+
+    for attr, subdir in [("BRONZE", "bronze"), ("SILVER", "silver"), ("GOLD", "gold")]:
+        new_path = tmp_path / subdir
+        new_path.mkdir()
+        for mod in (cfg, ingest_mod, transform_mod, segment_mod, quality_mod):
+            if hasattr(mod, attr):
+                monkeypatch.setattr(mod, attr, new_path)
+
     return tmp_path
